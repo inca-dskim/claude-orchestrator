@@ -1,7 +1,12 @@
 # Project Orchestrator
 
-> **버전**: 1.1.0
+> **버전**: 1.2.0
 > **최종 업데이트**: 2026-01-15
+>
+> **v1.2.0 변경사항**:
+> - 웹 검색 타이밍 및 Phase 연계 흐름 명확화
+> - 프리셋 버전을 "최신"으로 변경하여 유연성 확보
+> - 프리셋 선택 후 버전 확인 프로세스 추가
 >
 > **v1.1.0 변경사항**:
 > - 기술 스택 프리셋 기능 추가 (Phase 1.0)
@@ -44,6 +49,19 @@
 - `[기술명] [버전] breaking changes`
 - `[기술명] [버전] official documentation`
 
+### 검색 타이밍 및 Phase 연계
+
+웹 검색은 **Phase 1 시작 전**에 실행하며, 다음 흐름을 따릅니다:
+
+```
+1. 사용자 요청 분석 → 특정 버전 명시 확인 (예: "Spring Boot 4")
+2. 웹 검색 실행 → 최신 정보 확보
+3. 검색 결과를 사용자에게 안내 (주요 변경사항, 호환성 등)
+4. Phase 1.0 프리셋 제안 시, 검색된 버전 정보 반영
+5. Phase 2 요약에 검색 결과 포함
+6. Phase 3에서 검색 결과 기반 스킬/에이전트 생성
+```
+
 ### 검색 후 조치사항
 
 웹 검색으로 최신 정보를 확보한 후, 해당 정보를 기반으로 다음을 생성합니다:
@@ -85,13 +103,18 @@
 
 > "빠른 시작을 위해 기술 스택 프리셋을 선택하시겠습니까?
 >
-> 1. **Spring Boot 프리셋**: Java 21 + Spring Boot 3.x + JPA + PostgreSQL + Gradle
-> 2. **React 프리셋**: TypeScript + React 18 + Vite + TailwindCSS
+> 1. **Spring Boot 프리셋**: Java 21 + Spring Boot (최신) + JPA + PostgreSQL + Gradle
+> 2. **React 프리셋**: TypeScript + React (최신) + Vite + TailwindCSS
 > 3. **Node.js 프리셋**: TypeScript + Express/Fastify + Prisma + PostgreSQL
 > 4. **Python 프리셋**: Python 3.12 + FastAPI + SQLAlchemy + PostgreSQL
 > 5. **커스텀**: 직접 기술 스택을 선택합니다"
 
 프리셋 선택 시 해당 기술 스택이 자동으로 적용되며, 아키텍처와 추가 옵션만 질문합니다.
+
+**버전 확인 (중요):**
+- 사용자가 특정 버전을 명시한 경우 (예: "Spring Boot 4"), 프리셋의 기본 버전과 다를 수 있음
+- 이 경우 반드시 확인: "요청하신 Spring Boot 4를 사용하시겠습니까? (프리셋 기본값: 최신 안정 버전)"
+- 웹 검색 결과가 있다면 해당 버전의 주요 특징도 함께 안내
 
 #### 1.1 프로젝트 기본 정보
 - 프로젝트 이름 및 설명
