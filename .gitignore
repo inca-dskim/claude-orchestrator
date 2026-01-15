@@ -1,0 +1,12 @@
+# Claude Code 임시 파일
+tmpclaude-*
+
+# OS 생성 파일
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
