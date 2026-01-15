@@ -1,7 +1,12 @@
 # Project Orchestrator
 
-> **버전**: 1.0.0
+> **버전**: 1.1.0
 > **최종 업데이트**: 2026-01-15
+>
+> **v1.1.0 변경사항**:
+> - 기술 스택 프리셋 기능 추가 (Phase 1.0)
+> - Dry-run 미리보기 기능 추가 (Phase 2.7)
+> - Python 스크립트 Windows 인코딩 호환성 개선
 
 이 환경은 사용자의 요구사항을 분석하여 최적의 Claude Code 설정을 생성하는 오케스트레이터입니다.
 
@@ -74,12 +79,26 @@
 
 사용자가 프로젝트 요구사항을 말하면, 다음 카테고리별로 충분한 질문을 진행합니다.
 
+#### 1.0 빠른 시작: 기술 스택 프리셋 (선택)
+
+자주 사용되는 기술 스택 조합을 프리셋으로 제공합니다. 프리셋을 선택하면 질문 단계를 줄일 수 있습니다.
+
+> "빠른 시작을 위해 기술 스택 프리셋을 선택하시겠습니까?
+>
+> 1. **Spring Boot 프리셋**: Java 21 + Spring Boot 3.x + JPA + PostgreSQL + Gradle
+> 2. **React 프리셋**: TypeScript + React 18 + Vite + TailwindCSS
+> 3. **Node.js 프리셋**: TypeScript + Express/Fastify + Prisma + PostgreSQL
+> 4. **Python 프리셋**: Python 3.12 + FastAPI + SQLAlchemy + PostgreSQL
+> 5. **커스텀**: 직접 기술 스택을 선택합니다"
+
+프리셋 선택 시 해당 기술 스택이 자동으로 적용되며, 아키텍처와 추가 옵션만 질문합니다.
+
 #### 1.1 프로젝트 기본 정보
 - 프로젝트 이름 및 설명
 - 프로젝트 유형 (웹 서비스, REST API, 배치, CLI, 라이브러리 등)
 - 주요 목적과 핵심 기능
 
-#### 1.2 기술 스택
+#### 1.2 기술 스택 (커스텀 선택 시)
 - 프로그래밍 언어 및 버전
 - 프레임워크 및 버전 (Spring Boot, React, Node.js, Django 등)
 - 빌드 도구 (Gradle, Maven, npm, pnpm 등)
@@ -252,6 +271,35 @@ TDD 사이클을 따릅니다:
 - "1, 2, 3번 커맨드만 해주세요"
 - "code-reviewer랑 /build만 만들어주세요"
 - "훅은 빼고 나머지 다 해주세요"
+
+---
+
+## Phase 2.7: 생성 미리보기 (Dry-run)
+
+실제 파일 생성 전에 **어떤 파일들이 어디에 생성될지** 미리 보여줍니다.
+
+```
+## 생성 예정 파일 미리보기
+
+다음 파일들이 생성됩니다:
+
+📁 프로젝트 루트
+├── CLAUDE.md                          (프로젝트 설정)
+├── .claude/
+│   ├── commands/
+│   │   ├── build.md                   (/build 커맨드)
+│   │   ├── test.md                    (/test 커맨드)
+│   │   └── commit.md                  (/commit 커맨드)
+│   └── agents/
+│       ├── code-reviewer.md           (코드 리뷰 에이전트)
+│       └── debugger.md                (디버깅 에이전트)
+
+총 6개 파일이 생성됩니다.
+
+진행하시겠습니까? (Yes/No/수정)
+```
+
+**수정 선택 시**: Phase 2.5로 돌아가서 항목을 다시 선택할 수 있습니다.
 
 ---
 

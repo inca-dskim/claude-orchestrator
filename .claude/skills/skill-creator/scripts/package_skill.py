@@ -11,9 +11,15 @@ Example:
 """
 
 import sys
+import io
 import zipfile
 from pathlib import Path
 from quick_validate import validate_skill
+
+# Fix Windows encoding issues
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 
 def package_skill(skill_path, output_dir=None):

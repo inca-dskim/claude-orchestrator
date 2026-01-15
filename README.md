@@ -16,6 +16,21 @@ git clone https://github.com/inca-dskim/claude-orchestrator.git
 cd claude-orchestrator
 ```
 
+### Windows 사용자 주의사항
+
+Windows 환경에서 Python 스크립트 실행 시 인코딩 문제가 발생할 수 있습니다. 다음 방법 중 하나를 사용하세요:
+
+```bash
+# 방법 1: 환경 변수 설정
+set PYTHONIOENCODING=utf-8
+
+# 방법 2: PowerShell에서 실행
+$env:PYTHONIOENCODING = "utf-8"
+
+# 방법 3: chcp 명령으로 콘솔 인코딩 변경
+chcp 65001
+```
+
 ## 사용법
 
 ### 1. Claude Code 실행
@@ -74,6 +89,62 @@ Spring Boot 3.4로 REST API 만들어줘
 | **slash-command-creator** | 슬래시 커맨드 생성 | `/slash-command-creator` |
 | **subagent-creator** | 서브에이전트 생성 | `/subagent-creator` |
 | **hook-creator** | 훅 생성 | `/hook-creator` |
+
+### 스킬 사용 예시
+
+#### skill-creator 사용 예시
+```
+/skill-creator
+
+# 대화 예시
+사용자: PDF 문서를 다루는 스킬을 만들어줘
+Claude: 스킬 이름, 설명, 포함할 기능을 질문...
+       → .claude/skills/pdf-handler/ 폴더에 SKILL.md와 스크립트 생성
+```
+
+#### slash-command-creator 사용 예시
+```
+/slash-command-creator
+
+# 대화 예시
+사용자: Docker compose up 하는 커맨드 만들어줘
+Claude: → .claude/commands/docker-up.md 생성
+        이후 /docker-up 으로 사용 가능
+```
+
+#### subagent-creator 사용 예시
+```
+/subagent-creator
+
+# 대화 예시
+사용자: 코드 리뷰 전문 에이전트 만들어줘
+Claude: 에이전트 역할, 사용할 도구를 질문...
+       → .claude/agents/code-reviewer.md 생성
+```
+
+#### hook-creator 사용 예시
+```
+/hook-creator
+
+# 대화 예시
+사용자: 파일 저장할 때마다 자동으로 린트 실행하게 해줘
+Claude: → .claude/settings.json에 훅 추가
+```
+
+### 스킬 유틸리티 스크립트
+
+skill-creator 스킬에는 유용한 Python 스크립트가 포함되어 있습니다:
+
+```bash
+# 새 스킬 초기화
+python .claude/skills/skill-creator/scripts/init_skill.py my-new-skill --path .claude/skills
+
+# 스킬 유효성 검사
+python .claude/skills/skill-creator/scripts/quick_validate.py .claude/skills/my-skill
+
+# 스킬 패키징 (.skill 파일 생성)
+python .claude/skills/skill-creator/scripts/package_skill.py .claude/skills/my-skill
+```
 
 ## 구조
 
