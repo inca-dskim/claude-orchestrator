@@ -232,3 +232,176 @@ class UserControllerTest {
 ### Python
 - pytest
 - pytest-mock
+
+## TypeScript/Node.js TDD 예시
+
+### 단위 테스트 (Jest)
+
+```typescript
+// __tests__/domain/Task.test.ts
+import { Task, TaskStatus } from '../../src/domain/Task';
+
+describe('Task', () => {
+  // RED: 실패하는 테스트 먼저 작성
+  describe('create', () => {
+    it('should create a task with PENDING status', () => {
+      const task = Task.create('Test Task');
+
+      expect(task.title).toBe('Test Task');
+      expect(task.status).toBe(TaskStatus.PENDING);
+    });
+
+    it('should throw error when title is empty', () => {
+      expect(() => Task.create('')).toThrow('Title cannot be empty');
+    });
+  });
+
+  describe('complete', () => {
+    it('should mark task as completed', () => {
+      const task = Task.create('Test');
+      task.complete();
+
+      expect(task.status).toBe(TaskStatus.COMPLETED);
+    });
+
+    it('should throw error when already completed', () => {
+      const task = Task.create('Test');
+      task.complete();
+
+      expect(() => task.complete()).toThrow('already completed');
+    });
+  });
+});
+```
+
+### Mock을 사용한 서비스 테스트
+
+```typescript
+// __tests__/application/CreateTaskService.test.ts
+import { CreateTaskService } from '../../src/application/CreateTaskService';
+import { TaskRepository } from '../../src/application/ports/TaskRepository';
+
+describe('CreateTaskService', () => {
+  let mockRepo: jest.Mocked<TaskRepository>;
+  let service: CreateTaskService;
+
+  beforeEach(() => {
+    // Mock 설정
+    mockRepo = {
+      save: jest.fn(),
+      findById: jest.fn(),
+      findAll: jest.fn(),
+    };
+    service = new CreateTaskService(mockRepo);
+  });
+
+  it('should create and save a task', async () => {
+    // Given
+    mockRepo.save.mockImplementation(async (task) => task);
+
+    // When
+    const result = await service.execute({ title: 'New Task' });
+
+    // Then
+    expect(result.title).toBe('New Task');
+    expect(mockRepo.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('should throw error for invalid input', async () => {
+    await expect(service.execute({ title: '' }))
+      .rejects.toThrow('Title cannot be empty');
+
+    expect(mockRepo.save).not.toHaveBeenCalled();
+  });
+});
+```
+
+### API 통합 테스트 (Supertest)
+
+```typescript
+// __tests__/infrastructure/TaskController.test.ts
+import request from 'supertest';
+import express from 'express';
+import { TaskController } from '../../src/infrastructure/TaskController';
+import { InMemoryTaskRepository } from '../../src/infrastructure/InMemoryTaskRepository';
+
+describe('TaskController', () => {
+  let app: express.Application;
+
+  beforeEach(() => {
+    app = express();
+    app.use(express.json());
+
+    const repo = new InMemoryTaskRepository();
+    const controller = new TaskController(repo);
+    app.use('/api/tasks', controller.router);
+  });
+
+  describe('POST /api/tasks', () => {
+    it('should create a task and return 201', async () => {
+      const response = await request(app)
+        .post('/api/tasks')
+        .send({ title: 'New Task' })
+        .expect(201);
+
+      expect(response.body.title).toBe('New Task');
+      expect(response.body.status).toBe('PENDING');
+    });
+
+    it('should return 400 for invalid request', async () => {
+      await request(app)
+        .post('/api/tasks')
+        .send({ title: '' })
+        .expect(400);
+    });
+  });
+});
+```
+
+### TypeScript TDD 워크플로우
+
+1. **RED**: 테스트 파일 먼저 생성
+   ```bash
+   # 테스트 파일 생성
+   touch __tests__/domain/Task.test.ts
+
+   # 테스트 실행 (실패해야 함)
+   npm test -- --watch
+   ```
+
+2. **GREEN**: 최소 구현 작성
+   ```bash
+   # 구현 파일 생성
+   touch src/domain/Task.ts
+
+   # 테스트 통과 확인
+   ```
+
+3. **REFACTOR**: 코드 개선
+   ```bash
+   # 테스트가 계속 통과하는지 확인하면서 리팩토링
+   npm test
+   ```
+
+### package.json 테스트 설정
+
+```json
+{
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "roots": ["<rootDir>/__tests__"],
+    "coverageThreshold": {
+      "global": {
+        "branches": 80,
+        "functions": 80,
+        "lines": 80
+      }
+    }
+  }
+}
