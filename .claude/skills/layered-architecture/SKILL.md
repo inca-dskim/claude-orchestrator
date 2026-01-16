@@ -365,15 +365,16 @@ src/test/java/com/example/myapp/
 
 ### 테스트 예시
 
+**Spring Boot 3.x:**
 ```java
-// Controller 테스트
+// Controller 테스트 - Spring Boot 3.x
 @WebMvcTest(UserController.class)
 class UserControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockBean  // Spring Boot 3.x
     private UserService userService;
 
     @Test
@@ -394,6 +395,48 @@ class UserControllerTest {
             .andExpect(jsonPath("$.email").value("test@example.com"));
     }
 }
+```
+
+**Spring Boot 4.x:**
+```java
+// Controller 테스트 - Spring Boot 4.x
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
+@WebMvcTest(UserController.class)
+class UserControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockitoBean  // Spring Boot 4: @MockBean 대신 사용
+    private UserService userService;
+
+    @Test
+    void createUser_ValidRequest_ReturnsCreated() throws Exception {
+        // given
+        CreateUserRequest request = new CreateUserRequest(
+            "test@example.com", "password123", "Test User");
+        UserResponse response = new UserResponse(
+            1L, "test@example.com", "Test User", "ACTIVE", LocalDateTime.now());
+
+        given(userService.createUser(any())).willReturn(response);
+
+        // when & then
+        mockMvc.perform(post("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.email").value("test@example.com"));
+    }
+}
+```
+
+> **Spring Boot 4 주요 변경사항:**
+> - `spring-boot-starter-web` → `spring-boot-starter-webmvc`
+> - `@MockBean` → `@MockitoBean` (패키지: `org.springframework.test.context.bean.override.mockito`)
+> - `@WebMvcTest` 패키지: `org.springframework.boot.webmvc.test.autoconfigure`
+> - 테스트 의존성: `spring-boot-starter-webmvc-test` 추가 필요
 
 // Service 테스트
 @ExtendWith(MockitoExtension.class)

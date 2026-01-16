@@ -141,14 +141,15 @@ class UserRepositoryTest {
 
 ### API 테스트
 
+**Spring Boot 3.x:**
 ```java
-// Controller 테스트
+// Controller 테스트 - Spring Boot 3.x
 @WebMvcTest(UserController.class)
 class UserControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockBean  // Spring Boot 3.x
     private CreateUserUseCase createUserUseCase;
 
     @Test
@@ -162,6 +163,35 @@ class UserControllerTest {
     }
 }
 ```
+
+**Spring Boot 4.x:**
+```java
+// Controller 테스트 - Spring Boot 4
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
+@WebMvcTest(UserController.class)
+class UserControllerTest {
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockitoBean  // Spring Boot 4: @MockBean 대신 사용
+    private CreateUserUseCase createUserUseCase;
+
+    @Test
+    void shouldCreateUser() throws Exception {
+        mockMvc.perform(post("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"email": "user@example.com", "password": "pass123"}
+                    """))
+            .andExpect(status().isCreated());
+    }
+}
+```
+
+> **주의**: Spring Boot 4에서 `@MockBean`과 `@SpyBean`은 deprecated되어 제거되었습니다.
+> `@MockitoBean`과 `@MockitoSpyBean`을 사용하세요.
 
 ## 테스트 커버리지
 
