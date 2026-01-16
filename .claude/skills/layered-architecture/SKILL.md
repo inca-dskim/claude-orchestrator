@@ -5,6 +5,14 @@ description: "레이어드 아키텍처 적용 가이드. Controller-Service-Rep
 
 # Layered Architecture Guide
 
+> ⚠️ **동적 스킬 정책 안내**
+>
+> 이 스킬은 **레이어드 아키텍처 원칙**을 제공합니다. 아래의 코드 예시는 **참고용 기본 템플릿**입니다.
+> 특정 버전이나 최신 기술 적용 시에는 **반드시 웹 검색**으로 최신 베스트 프랙티스를 확인하세요.
+>
+> - 원칙: Controller-Service-Repository 패턴 → **정적 참조**
+> - 구현 예시: Spring Boot 코드 → **웹 검색 우선**
+
 ## Overview
 
 레이어드 아키텍처는 가장 전통적이고 널리 사용되는 아키텍처 패턴입니다.

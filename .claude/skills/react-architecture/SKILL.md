@@ -5,6 +5,14 @@ description: "React 프론트엔드 아키텍처 가이드. Feature-based 구조
 
 # React Frontend Architecture Guide
 
+> ⚠️ **동적 스킬 정책 안내**
+>
+> 이 스킬은 **React 아키텍처 원칙**을 제공합니다. 아래의 코드 예시는 **참고용 기본 템플릿**입니다.
+> 특정 React 버전이나 라이브러리 적용 시에는 **반드시 웹 검색**으로 최신 API를 확인하세요.
+>
+> - 원칙: Feature-based 구조, 상태 관리 패턴 → **정적 참조**
+> - 구현 예시: React/TypeScript 코드 → **웹 검색 우선**
+
 ## Overview
 
 React 프론트엔드 프로젝트를 위한 아키텍처 가이드입니다.
