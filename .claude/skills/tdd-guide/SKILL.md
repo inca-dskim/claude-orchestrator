@@ -405,3 +405,172 @@ describe('TaskController', () => {
     }
   }
 }
+```
+
+## Python/FastAPI TDD 예시
+
+### 도메인 단위 테스트 (pytest)
+
+```python
+# tests/domain/test_task.py
+import pytest
+from src.domain.task import Task, TaskStatus
+
+
+class TestTask:
+    # RED: 실패하는 테스트 먼저 작성
+    def test_create_task_with_pending_status(self):
+        task = Task.create("Test Task")
+
+        assert task.title == "Test Task"
+        assert task.status == TaskStatus.PENDING
+        assert task.id is not None
+
+    def test_create_task_raises_error_for_empty_title(self):
+        with pytest.raises(ValueError, match="Title cannot be empty"):
+            Task.create("")
+
+    def test_complete_task(self):
+        task = Task.create("Test Task")
+        task.complete()
+
+        assert task.status == TaskStatus.COMPLETED
+
+    def test_complete_already_completed_task_raises_error(self):
+        task = Task.create("Test Task")
+        task.complete()
+
+        with pytest.raises(ValueError, match="already completed"):
+            task.complete()
+```
+
+### Mock을 사용한 유스케이스 테스트
+
+```python
+# tests/application/test_create_task.py
+import pytest
+from unittest.mock import AsyncMock
+from src.application.use_cases import CreateTaskUseCase, CreateTaskInput
+from src.application.ports import TaskRepository
+
+
+@pytest.fixture
+def mock_repository():
+    repo = AsyncMock(spec=TaskRepository)
+    repo.save.side_effect = lambda task: task
+    return repo
+
+
+@pytest.mark.asyncio
+async def test_create_task_success(mock_repository):
+    # Given
+    use_case = CreateTaskUseCase(mock_repository)
+    input_data = CreateTaskInput(title="New Task")
+
+    # When
+    result = await use_case.execute(input_data)
+
+    # Then
+    assert result.title == "New Task"
+    assert result.status == "PENDING"
+    mock_repository.save.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_create_task_empty_title_raises_error(mock_repository):
+    use_case = CreateTaskUseCase(mock_repository)
+    input_data = CreateTaskInput(title="")
+
+    with pytest.raises(ValueError, match="Title cannot be empty"):
+        await use_case.execute(input_data)
+
+    mock_repository.save.assert_not_called()
+```
+
+### API 통합 테스트 (httpx + pytest-asyncio)
+
+```python
+# tests/infrastructure/test_api.py
+import pytest
+from httpx import AsyncClient, ASGITransport
+from src.main import create_app
+
+
+@pytest.fixture
+def app():
+    return create_app()
+
+
+@pytest.mark.asyncio
+async def test_create_task(app):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/api/tasks/", json={"title": "New Task"})
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["title"] == "New Task"
+        assert data["status"] == "PENDING"
+
+
+@pytest.mark.asyncio
+async def test_create_task_empty_title(app):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/api/tasks/", json={"title": ""})
+
+        assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_health_check(app):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/health")
+
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
+```
+
+### Python TDD 워크플로우
+
+1. **RED**: 테스트 파일 먼저 생성
+   ```bash
+   # 테스트 파일 생성
+   touch tests/domain/test_task.py
+
+   # 테스트 실행 (실패해야 함)
+   pytest tests/ -v
+   ```
+
+2. **GREEN**: 최소 구현 작성
+   ```bash
+   # 구현 파일 생성
+   touch src/domain/task.py
+
+   # 테스트 통과 확인
+   pytest tests/ -v
+   ```
+
+3. **REFACTOR**: 코드 개선
+   ```bash
+   # 테스트가 계속 통과하는지 확인하면서 리팩토링
+   pytest tests/ -v
+   ```
+
+### pyproject.toml pytest 설정
+
+```toml
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+fail_under = 80

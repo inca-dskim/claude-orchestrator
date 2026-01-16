@@ -686,6 +686,422 @@ describe('TaskController', () => {
 });
 ```
 
+## Python/FastAPI 디렉토리 구조
+
+### 패키지 구조 (권장)
+
+```
+src/
+├── domain/                          # 도메인 레이어 (순수 Python)
+│   ├── __init__.py
+│   ├── entities/                    # 도메인 엔티티
+│   │   ├── __init__.py
+│   │   └── task.py
+│   ├── value_objects/               # 값 객체
+│   │   └── task_id.py
+│   └── exceptions/                  # 도메인 예외
+│       └── __init__.py
+│
+├── application/                     # 애플리케이션 레이어
+│   ├── __init__.py
+│   ├── ports/                       # 포트 인터페이스
+│   │   ├── __init__.py
+│   │   └── task_repository.py
+│   ├── use_cases/                   # 유스케이스
+│   │   ├── __init__.py
+│   │   └── create_task.py
+│   └── dto/                         # Command & Query 객체
+│       └── __init__.py
+│
+├── infrastructure/                  # 인프라스트럭처 레이어
+│   ├── __init__.py
+│   ├── persistence/                 # 영속성 어댑터
+│   │   ├── __init__.py
+│   │   ├── in_memory_task_repository.py
+│   │   └── sqlalchemy_task_repository.py
+│   └── web/                         # 웹 어댑터 (FastAPI)
+│       ├── __init__.py
+│       ├── task_router.py
+│       └── schemas.py
+│
+├── main.py                          # 앱 진입점 (의존성 주입)
+└── config.py                        # 설정
+```
+
+### 테스트 구조
+
+```
+tests/
+├── domain/
+│   └── entities/
+│       └── test_task.py            # 단위 테스트 (순수)
+├── application/
+│   └── use_cases/
+│       └── test_create_task.py     # 단위 테스트 (Mock 사용)
+└── infrastructure/
+    └── web/
+        └── test_task_router.py     # 통합 테스트 (httpx)
+```
+
+## Python 레이어별 상세 가이드
+
+### 1. Domain Layer (Python)
+
+```python
+# domain/entities/task.py - 순수 Python, 프레임워크 무관
+from dataclasses import dataclass, field
+from enum import Enum
+from uuid import uuid4
+from datetime import datetime
+
+
+class TaskStatus(Enum):
+    PENDING = "PENDING"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+
+
+@dataclass
+class Task:
+    """Task 도메인 엔티티 - 프레임워크 무관"""
+    id: str
+    title: str
+    status: TaskStatus
+    created_at: datetime = field(default_factory=datetime.now)
+
+    @classmethod
+    def create(cls, title: str) -> "Task":
+        """팩토리 메서드: Task 생성"""
+        if not title or not title.strip():
+            raise ValueError("Title cannot be empty")
+
+        return cls(
+            id=str(uuid4()),
+            title=title.strip(),
+            status=TaskStatus.PENDING
+        )
+
+    def complete(self) -> None:
+        """Task를 완료 상태로 변경"""
+        if self.status == TaskStatus.COMPLETED:
+            raise ValueError("Task is already completed")
+        self.status = TaskStatus.COMPLETED
+
+    def start(self) -> None:
+        """Task를 진행 중 상태로 변경"""
+        if self.status != TaskStatus.PENDING:
+            raise ValueError("Can only start pending tasks")
+        self.status = TaskStatus.IN_PROGRESS
+```
+
+### 2. Application Layer (Python)
+
+```python
+# application/ports/task_repository.py - 아웃바운드 포트
+from abc import ABC, abstractmethod
+from typing import Optional
+from domain.entities.task import Task
+
+
+class TaskRepository(ABC):
+    """Task 저장소 포트 인터페이스"""
+
+    @abstractmethod
+    async def save(self, task: Task) -> Task:
+        pass
+
+    @abstractmethod
+    async def find_by_id(self, task_id: str) -> Optional[Task]:
+        pass
+
+    @abstractmethod
+    async def find_all(self) -> list[Task]:
+        pass
+
+    @abstractmethod
+    async def delete(self, task_id: str) -> None:
+        pass
+```
+
+```python
+# application/use_cases/create_task.py - 유스케이스
+from dataclasses import dataclass
+from domain.entities.task import Task
+from application.ports.task_repository import TaskRepository
+
+
+@dataclass
+class CreateTaskInput:
+    title: str
+
+
+@dataclass
+class TaskOutput:
+    id: str
+    title: str
+    status: str
+    created_at: str
+
+
+class CreateTaskUseCase:
+    """Task 생성 유스케이스"""
+
+    def __init__(self, task_repository: TaskRepository):
+        self.task_repository = task_repository
+
+    async def execute(self, input_data: CreateTaskInput) -> TaskOutput:
+        task = Task.create(input_data.title)
+        saved_task = await self.task_repository.save(task)
+
+        return TaskOutput(
+            id=saved_task.id,
+            title=saved_task.title,
+            status=saved_task.status.value,
+            created_at=saved_task.created_at.isoformat()
+        )
+```
+
+### 3. Infrastructure Layer (Python)
+
+```python
+# infrastructure/persistence/in_memory_task_repository.py
+from typing import Optional
+from domain.entities.task import Task
+from application.ports.task_repository import TaskRepository
+
+
+class InMemoryTaskRepository(TaskRepository):
+    """인메모리 Task 저장소 구현"""
+
+    def __init__(self):
+        self._tasks: dict[str, Task] = {}
+
+    async def save(self, task: Task) -> Task:
+        self._tasks[task.id] = task
+        return task
+
+    async def find_by_id(self, task_id: str) -> Optional[Task]:
+        return self._tasks.get(task_id)
+
+    async def find_all(self) -> list[Task]:
+        return list(self._tasks.values())
+
+    async def delete(self, task_id: str) -> None:
+        self._tasks.pop(task_id, None)
+```
+
+```python
+# infrastructure/web/task_router.py - FastAPI Router
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
+
+from application.use_cases.create_task import CreateTaskUseCase, CreateTaskInput
+from application.ports.task_repository import TaskRepository
+
+
+class CreateTaskRequest(BaseModel):
+    title: str
+
+
+class TaskResponse(BaseModel):
+    id: str
+    title: str
+    status: str
+    created_at: str
+
+
+def create_task_router(task_repository: TaskRepository) -> APIRouter:
+    """의존성 주입을 통한 라우터 생성"""
+    router = APIRouter(prefix="/api/tasks", tags=["tasks"])
+
+    @router.post("/", response_model=TaskResponse, status_code=201)
+    async def create_task(request: CreateTaskRequest):
+        try:
+            use_case = CreateTaskUseCase(task_repository)
+            result = await use_case.execute(CreateTaskInput(title=request.title))
+            return TaskResponse(**result.__dict__)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    @router.get("/", response_model=list[TaskResponse])
+    async def get_all_tasks():
+        tasks = await task_repository.find_all()
+        return [
+            TaskResponse(
+                id=t.id,
+                title=t.title,
+                status=t.status.value,
+                created_at=t.created_at.isoformat()
+            )
+            for t in tasks
+        ]
+
+    return router
+```
+
+### 4. 진입점 (의존성 주입)
+
+```python
+# main.py
+from fastapi import FastAPI
+
+from infrastructure.persistence.in_memory_task_repository import InMemoryTaskRepository
+from infrastructure.web.task_router import create_task_router
+
+
+def create_app() -> FastAPI:
+    """애플리케이션 팩토리"""
+    app = FastAPI(title="Task API", version="1.0.0")
+
+    # 의존성 주입
+    task_repository = InMemoryTaskRepository()
+    task_router = create_task_router(task_repository)
+
+    app.include_router(task_router)
+
+    @app.get("/health")
+    async def health_check():
+        return {"status": "ok"}
+
+    return app
+
+
+app = create_app()
+```
+
+## Python 테스트 예시
+
+### 도메인 단위 테스트 (pytest)
+
+```python
+# tests/domain/entities/test_task.py
+import pytest
+from domain.entities.task import Task, TaskStatus
+
+
+class TestTask:
+    def test_create_task_with_pending_status(self):
+        task = Task.create("Test Task")
+
+        assert task.title == "Test Task"
+        assert task.status == TaskStatus.PENDING
+        assert task.id is not None
+
+    def test_create_task_raises_error_for_empty_title(self):
+        with pytest.raises(ValueError, match="Title cannot be empty"):
+            Task.create("")
+
+    def test_complete_task(self):
+        task = Task.create("Test Task")
+        task.complete()
+
+        assert task.status == TaskStatus.COMPLETED
+
+    def test_complete_already_completed_task_raises_error(self):
+        task = Task.create("Test Task")
+        task.complete()
+
+        with pytest.raises(ValueError, match="already completed"):
+            task.complete()
+```
+
+### 유스케이스 단위 테스트 (Mock 사용)
+
+```python
+# tests/application/use_cases/test_create_task.py
+import pytest
+from unittest.mock import AsyncMock
+from application.use_cases.create_task import CreateTaskUseCase, CreateTaskInput
+from application.ports.task_repository import TaskRepository
+
+
+@pytest.fixture
+def mock_repository():
+    repo = AsyncMock(spec=TaskRepository)
+    repo.save.side_effect = lambda task: task
+    return repo
+
+
+@pytest.mark.asyncio
+async def test_create_task_success(mock_repository):
+    use_case = CreateTaskUseCase(mock_repository)
+    input_data = CreateTaskInput(title="New Task")
+
+    result = await use_case.execute(input_data)
+
+    assert result.title == "New Task"
+    assert result.status == "PENDING"
+    mock_repository.save.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_create_task_empty_title_raises_error(mock_repository):
+    use_case = CreateTaskUseCase(mock_repository)
+    input_data = CreateTaskInput(title="")
+
+    with pytest.raises(ValueError, match="Title cannot be empty"):
+        await use_case.execute(input_data)
+
+    mock_repository.save.assert_not_called()
+```
+
+### API 통합 테스트 (httpx + pytest-asyncio)
+
+```python
+# tests/infrastructure/web/test_task_router.py
+import pytest
+from httpx import AsyncClient, ASGITransport
+from main import create_app
+
+
+@pytest.fixture
+def app():
+    return create_app()
+
+
+@pytest.mark.asyncio
+async def test_create_task(app):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/api/tasks/", json={"title": "New Task"})
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["title"] == "New Task"
+        assert data["status"] == "PENDING"
+
+
+@pytest.mark.asyncio
+async def test_create_task_empty_title(app):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/api/tasks/", json={"title": ""})
+
+        assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_get_all_tasks(app):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        await client.post("/api/tasks/", json={"title": "Task 1"})
+
+        response = await client.get("/api/tasks/")
+
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+
+
+@pytest.mark.asyncio
+async def test_health_check(app):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/health")
+
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
+```
+
 ## 주의사항
 
 1. **과도한 추상화 지양**: 소규모 프로젝트에서는 레이어드 아키텍처가 더 적합할 수 있음
